@@ -1,0 +1,31 @@
+# Beenga Video OS — Cog build for Replicate.
+#
+#   cog push r8.im/beenga/beenga-video-1
+#
+# ⚠ THIS IS NOT SHAPED LIKE beenga-image-1, ON PURPOSE.
+#
+# That model bakes 15GB of FLUX weights into a ~70GB CUDA image and needs a 320GB
+# builder. This one runs NO model weights at all: it is an orchestrator that calls
+# Replicate's hosted Wan 2.2 endpoints and assembles the result with ffmpeg.
+#
+# Consequences, all good:
+#   gpu: false        the container waits on API calls, it does not do maths
+#   no CUDA           so no PEP 668 / Ubuntu 24.04 trap that cost beenga-image
+#                     two broken builds
+#   small image       builds on a cheap short-lived droplet in minutes
+#   fast cold start   nothing to load
+#
+# The trade is that every render costs the underlying Wan predictions on top of
+# this container's (cheap, mostly-idle) CPU time. That is the correct trade for a
+# pipeline whose value is the ROUTING, not the weights.
+build:
+  gpu: false
+  python_version: "3.11"
+  system_packages:
+    - "ffmpeg"
+  python_packages:
+    - "requests==2.32.3"
+
+predict: "predict.py:Predictor"
+
+image: "r8.im/beenga/beenga-video-1"

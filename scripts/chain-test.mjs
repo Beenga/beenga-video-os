@@ -31,6 +31,23 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+
+/** Load .env from the repo root if the token is not already exported.
+ *
+ *  Without this the scripts require `set -a; . .env; set +a` before every run,
+ *  which is invisible friction and the reason "it's one command" was not true.
+ *  Same pattern as beenga-in/lib/replicate.mjs: resolve from the MODULE url, not
+ *  cwd, so it works no matter where it is invoked from. */
+function loadEnv() {
+  const p = path.join(ROOT, ".env");
+  if (!fs.existsSync(p)) return;
+  for (const line of fs.readFileSync(p, "utf8").split("\n")) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/i);
+    if (m && !(m[1] in process.env)) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
+loadEnv();
+
 const API = "https://api.replicate.com/v1";
 const T = process.env.REPLICATE_API_TOKEN;
 if (!T) { console.error("REPLICATE_API_TOKEN not set"); process.exit(1); }

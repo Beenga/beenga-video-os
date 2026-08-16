@@ -14,3 +14,4 @@ dataset/
 # evidence. None of these repos ship a LICENSE file; the licence is declared only in
 # the card, which is editable upstream. A snapshot at a pinned SHA is the whole proof.
 .DS_Store
+cog/__pycache__/
