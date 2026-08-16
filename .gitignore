@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+node_modules/
+out/
+dataset/
+!docs/
+*.safetensors
+*.mp4
+*.wav
+.venv/
+
+# licenses/ is deliberately NOT ignored — the archived model cards ARE the licence
+# evidence. None of these repos ship a LICENSE file; the licence is declared only in
+# the card, which is editable upstream. A snapshot at a pinned SHA is the whole proof.
+.DS_Store

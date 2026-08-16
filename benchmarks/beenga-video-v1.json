@@ -1,0 +1,903 @@
+{
+  "suite": "beenga-video-v1",
+  "principle": "Explicit user attribute > model stereotype/default. Motion must survive the clip, not just the first frame.",
+  "base_models": [
+    "wan-video/wan-2.2-5b-fast",
+    "wan-video/wan-2.2-t2v-fast",
+    "wan-video/wan-2.2-i2v-fast",
+    "wan-video/wan-2.2-s2v"
+  ],
+  "notes": "must_obey=true means the prompt names the attribute explicitly and the model must follow it. default_behavior=true means the prompt is deliberately generic and we are measuring the model's unprompted default (stereotype check). needs='t2v' runs from text alone; 'i2v' requires a still from the image model; 's2v' requires a still plus audio. Video adds a failure class images do not have: an attribute can be correct in frame 1 and wrong by frame 120, so every case names what must hold ACROSS the clip.",
+  "seed_policy": "Wave 0 runs 1 seed for triage. default_behavior cases and any case that moves in wave 1 get 3 seeds before any conclusion is recorded. Motion is noisier per seed than a still image; a single-seed video result is an anecdote. Cases owned by beenga-image are not re-run here after wave 1 — they were measured to establish the base-model choice and that job is done.",
+  "cases": [
+    {
+      "id": "VID-MOT-001",
+      "category": "motion",
+      "concept": "casual_dance_not_classical",
+      "prompt": "A 25-year-old Indian woman dancing casually in her living room, natural relaxed movement, realistic video.",
+      "desired_attributes": [
+        "casual everyday dancing",
+        "domestic setting",
+        "no classical dance vocabulary",
+        "no stage"
+      ],
+      "common_failure": "Renders classical Bharatanatyam/Kathak hand positions, a performance stage, or ceremonial costume.",
+      "across_clip": "Movement stays casual for the whole clip rather than settling into a classical pose.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-MOT-002",
+      "category": "motion",
+      "concept": "hand_integrity_under_motion",
+      "prompt": "A 27-year-old Indian man clapping his hands in time with music, medium shot, realistic video.",
+      "desired_attributes": [
+        "exactly two hands",
+        "five fingers each",
+        "hands meet cleanly"
+      ],
+      "common_failure": "Fingers merge, multiply, or dissolve at the moment the hands meet.",
+      "across_clip": "Hand topology is stable through every contact event, not only at rest.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-MOT-003",
+      "category": "motion",
+      "concept": "walking_gait",
+      "prompt": "A 30-year-old Indian woman walking down a modern street, side view, full body from head to feet in frame for the whole shot, steady camera tracking alongside her, realistic video.",
+      "desired_attributes": [
+        "natural gait",
+        "feet contact the ground",
+        "consistent stride"
+      ],
+      "common_failure": "Feet slide or skate, legs swap, stride length changes mid-clip.",
+      "across_clip": "Gait cycle is physically consistent from first step to last.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os",
+      "rewrite_note": "Rewritten 2026-08-16. The original never guaranteed feet in frame. Side view and full-body framing are now stated, because a gait cycle cannot be judged without seeing the feet. NOTE: this case still needs a per-frame foot-tracking instrument; sampled frames cannot answer it even with correct framing.",
+      "unmeasurable_before": true
+    },
+    {
+      "id": "VID-MOT-004",
+      "category": "motion",
+      "concept": "one_hand_raised",
+      "prompt": "A 25-year-old Indian woman dancing with one hand raised above her head, the other hand at her waist, realistic video.",
+      "desired_attributes": [
+        "exactly one raised hand",
+        "one hand at waist",
+        "two arms total"
+      ],
+      "common_failure": "Grows a third arm, or the raised hand swaps sides mid-clip. Direct video analogue of the extra-limb failure recorded in beenga-image.",
+      "across_clip": "Limb count and which arm is raised both stay fixed.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-MOT-005",
+      "category": "motion",
+      "concept": "group_dance_crowd",
+      "prompt": "Four young Indian friends dancing together at a house party, casual clothes, realistic video.",
+      "desired_attributes": [
+        "exactly four people",
+        "distinct individuals",
+        "casual party setting"
+      ],
+      "common_failure": "People count drifts, faces merge, bodies interpenetrate.",
+      "across_clip": "Headcount is the same in the last frame as the first.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-MOT-006",
+      "category": "motion",
+      "concept": "music_without_instruments",
+      "prompt": "An Indian woman dancing to music at home, realistic video.",
+      "desired_attributes": [
+        "dancing",
+        "no band or instrument rig in frame"
+      ],
+      "common_failure": "The word 'music' renders literally as a drum kit, mic stand or dhol. This exact failure is recorded in beenga-image for the still-image case; testing whether it reproduces in video.",
+      "across_clip": "No instrument drifts into frame partway through.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-CLOTH-001",
+      "category": "cloth_dynamics",
+      "concept": "pallu_in_motion",
+      "prompt": "A 30-year-old Indian woman in a contemporary cotton sari turning around, the pallu swinging with the movement, realistic video.",
+      "desired_attributes": [
+        "pallu moves with the body",
+        "fabric has weight",
+        "drape stays coherent"
+      ],
+      "common_failure": "The pallu freezes to the body like paint, smears, or detaches and floats.",
+      "across_clip": "Fabric responds to every direction change, not just the first.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-CLOTH-002",
+      "category": "cloth_dynamics",
+      "concept": "dupatta_flow",
+      "prompt": "A 24-year-old Indian woman walking outdoors in a kurti with a long dupatta, the dupatta trailing in the breeze, realistic video.",
+      "desired_attributes": [
+        "dupatta trails behind",
+        "continuous single piece of fabric",
+        "responds to walking"
+      ],
+      "common_failure": "Dupatta tears into fragments, changes length, or clips through the body.",
+      "across_clip": "Dupatta is one continuous piece for the whole clip.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-CLOTH-003",
+      "category": "cloth_dynamics",
+      "concept": "long_hair_motion",
+      "prompt": "A 25-year-old Indian woman with long dense black hair turning her head quickly, medium shot showing her whole head and both shoulders, hands down at her sides, plain background, realistic video.",
+      "desired_attributes": [
+        "hair moves with head",
+        "hair volume stays constant",
+        "strands stay coherent"
+      ],
+      "common_failure": "Hair smears into a solid mass, changes length, or lags as a separate object.",
+      "across_clip": "Hair length and density are the same at the end as the start.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os",
+      "rewrite_note": "Rewritten 2026-08-16. The original rendered a tight face crop with an arm across it, so hair volume and length could not be judged at all. Framing is now stated, and the hands are put down so they cannot occlude.",
+      "unmeasurable_before": true
+    },
+    {
+      "id": "VID-CLOTH-004",
+      "category": "cloth_dynamics",
+      "concept": "pleats_under_movement",
+      "prompt": "A 32-year-old Indian woman in a sari walking up a flight of stairs, sari pleats moving with each step, realistic video.",
+      "desired_attributes": [
+        "pleats stay parallel",
+        "pleats open and close with the stride",
+        "garment stays a sari"
+      ],
+      "common_failure": "Pleats scramble into noise or the garment reads as a generic dress by the last frame.",
+      "across_clip": "Garment identity is stable; it is a sari in every frame.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-CLOTH-005",
+      "category": "cloth_dynamics",
+      "concept": "sleeveless_persists",
+      "prompt": "A 27-year-old Indian woman wearing a completely sleeveless fitted blouse with bare shoulders and no dupatta or pallu covering them, raising her arm to wave, both armholes clearly visible, realistic video.",
+      "desired_attributes": [
+        "sleeveless throughout",
+        "high clean armhole"
+      ],
+      "common_failure": "A sleeve grows once the arm moves — the attribute survives frame 1 and fails under motion.",
+      "across_clip": "Blouse stays sleeveless in every frame including mid-wave.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-video-os",
+      "rewrite_note": "Rewritten 2026-08-16. The original asked for a sari AND a sleeveless blouse — and the pallu drapes over the shoulder, hiding the armhole. The attribute under test was occluded by another requested attribute, so the case could never be scored. The sari is removed rather than the sleeveless requirement.",
+      "unmeasurable_before": true
+    },
+    {
+      "id": "VID-CLOTH-006",
+      "category": "cloth_dynamics",
+      "concept": "braid_count_under_motion",
+      "prompt": "A 25-year-old Indian woman with her hair in exactly two braids, one over each shoulder, dancing, wide shot facing the camera with both shoulders and both braids in frame, realistic video.",
+      "desired_attributes": [
+        "exactly two braids",
+        "one per shoulder",
+        "braids swing with movement"
+      ],
+      "common_failure": "Braids merge into one, or a third appears, once the head moves.",
+      "across_clip": "Braid count is two in every frame.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os",
+      "rewrite_note": "Rewritten 2026-08-16. The original framed one shoulder, so only one braid was ever visible and the count could not be checked.",
+      "unmeasurable_before": true
+    },
+    {
+      "id": "VID-ID-001",
+      "category": "identity",
+      "concept": "face_stability_5s",
+      "prompt": "A close-up of a 29-year-old Indian woman smiling and looking into the camera, realistic video.",
+      "desired_attributes": [
+        "same person throughout",
+        "stable facial geometry"
+      ],
+      "common_failure": "The face morphs into a different person over the clip.",
+      "across_clip": "Frame-to-frame CSIM stays above threshold; no discontinuity.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "instrument": "csim_intra",
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-ID-002",
+      "category": "identity",
+      "concept": "deep_complexion_holds",
+      "prompt": "A 30-year-old Indian woman with deep brown skin and warm undertones, standing in soft daylight, turning slowly toward the camera, realistic video.",
+      "desired_attributes": [
+        "deep brown complexion",
+        "tone constant across the clip"
+      ],
+      "common_failure": "Complexion renders lighter than requested, or drifts lighter frame to frame as the model regresses to its prior. beenga-image found the still-image version of this was fixable by stacking five descriptions of the same tone; whether that survives into video is unknown.",
+      "across_clip": "Median skin luma does not trend upward across frames.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "instrument": "luma_trend",
+      "priority": "critical",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-ID-003",
+      "category": "identity",
+      "concept": "very_deep_complexion_holds",
+      "prompt": "A 35-year-old Indian man with very deep dark brown skin, seated and talking, realistic video.",
+      "desired_attributes": [
+        "very deep complexion",
+        "tone constant"
+      ],
+      "common_failure": "Undershoot — renders mid-brown. The dark end failed hardest in the beenga-image sweep.",
+      "across_clip": "Median skin luma does not trend upward across frames.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "instrument": "luma_trend",
+      "priority": "critical",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-ID-004",
+      "category": "identity",
+      "concept": "wheatish_does_not_overshoot",
+      "prompt": "A 28-year-old Indian woman with a wheatish complexion, walking indoors, realistic video.",
+      "desired_attributes": [
+        "mid-light wheatish tone",
+        "neither pale nor dark"
+      ],
+      "common_failure": "Overshoot — a blanket 'make it darker' rule pushes every tone dark, which is the same bias mirrored. This case exists to catch that, exactly as the image sweep's control tones did.",
+      "across_clip": "Tone stays mid; does not drift in either direction.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "instrument": "luma_trend",
+      "priority": "high",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-ID-005",
+      "category": "identity",
+      "concept": "clean_shaven_holds",
+      "prompt": "A completely clean-shaven 23-year-old Indian man talking to camera, perfectly smooth freshly shaved face, realistic video.",
+      "desired_attributes": [
+        "zero facial hair throughout"
+      ],
+      "common_failure": "Stubble appears partway through the clip. The still-image version needed five stacked positive descriptions to fix; testing whether the fix transfers.",
+      "across_clip": "No facial hair emerges in any frame.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-ID-006",
+      "category": "identity",
+      "concept": "identity_across_stitched_clips",
+      "prompt": "A 26-year-old Indian woman singing on a rooftop at sunset, medium shot, realistic video.",
+      "desired_attributes": [
+        "same person across three separately generated clips"
+      ],
+      "common_failure": "Identity drifts between clips. Drift WITHIN a clip is what everyone reports; drift BETWEEN stitched clips is what ruins a music video.",
+      "across_clip": "Cross-clip CSIM between three independent generations at different seeds stays above threshold.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "i2v",
+      "duration_s": 5,
+      "instrument": "csim_inter",
+      "repeat": 3,
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-DEF-001",
+      "category": "defaults",
+      "concept": "generic_indian_scene",
+      "prompt": "A young Indian woman standing on a rooftop in Delhi, realistic video.",
+      "desired_attributes": [
+        "contemporary setting",
+        "modern everyday clothing"
+      ],
+      "common_failure": "Weathered terrace, historic domes, ceremonial silk. This is the exact prompt that failed on the image side; running it unchanged so the two suites are comparable.",
+      "across_clip": "Setting does not drift toward the traditional as the clip proceeds.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-DEF-002",
+      "category": "defaults",
+      "concept": "generic_indian_portrait",
+      "prompt": "A portrait video of an Indian woman, realistic video.",
+      "desired_attributes": [
+        "contemporary dress",
+        "natural complexion",
+        "no ceremonial styling unless asked"
+      ],
+      "common_failure": "Heavy gold jewellery, maroon-gold silk, bridal styling.",
+      "across_clip": "Styling does not become more ceremonial over the clip.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-DEF-003",
+      "category": "defaults",
+      "concept": "modern_indian_workplace",
+      "prompt": "An Indian software engineer working at a desk in Bengaluru, realistic video.",
+      "desired_attributes": [
+        "contemporary office",
+        "modern equipment",
+        "everyday clothing"
+      ],
+      "common_failure": "Dated equipment, cluttered or dilapidated surroundings, generic 'developing country office' cues.",
+      "across_clip": "Environment stays contemporary throughout.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-DEF-004",
+      "category": "defaults",
+      "concept": "indian_street_present_day",
+      "prompt": "A busy street in Mumbai, realistic video.",
+      "desired_attributes": [
+        "present-day street",
+        "current vehicles and signage"
+      ],
+      "common_failure": "Defaults to poverty imagery or a period look rather than a contemporary city street.",
+      "across_clip": "Era cues stay consistent.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-DEF-005",
+      "category": "defaults",
+      "concept": "explicit_traditional_still_works",
+      "prompt": "An Indian bride in traditional red bridal lehenga at her wedding ceremony, realistic video.",
+      "desired_attributes": [
+        "traditional bridal dress",
+        "ceremony setting"
+      ],
+      "common_failure": "A contemporary-default rule over-corrects and strips the traditional styling the user explicitly asked for. This is the guard case: the default must stay out of the way when intent is stated.",
+      "across_clip": "Traditional styling holds.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-DEF-006",
+      "category": "defaults",
+      "concept": "everyday_indian_home",
+      "prompt": "An Indian family having dinner together at home, realistic video.",
+      "desired_attributes": [
+        "contemporary middle-class home",
+        "everyday meal",
+        "modern kitchen or dining area"
+      ],
+      "common_failure": "Rural or ceremonial framing, floor seating, festival dress by default.",
+      "across_clip": "Setting stays contemporary and domestic.",
+      "must_obey": false,
+      "default_behavior": true,
+      "needs": "t2v",
+      "duration_s": 5,
+      "priority": "high",
+      "owner": "beenga-image",
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+    },
+    {
+      "id": "VID-SING-001",
+      "category": "singing",
+      "concept": "sustained_vowel",
+      "prompt": "Close-up of a 26-year-old Indian woman singing, medium shot, natural expression, realistic video.",
+      "audio": "audio/sustained-aa-2s.wav",
+      "audio_notes": "A single sustained 'aa' vowel held for two seconds. Speech-trained lip-sync models almost never see a mouth held in one open shape for 40+ frames. This is the sharpest single probe in the suite.",
+      "desired_attributes": [
+        "mouth stays open for the full vowel",
+        "no chewing motion",
+        "no premature closure"
+      ],
+      "common_failure": "Mouth closes and reopens repeatedly, treating a held vowel as a sequence of syllables.",
+      "across_clip": "Mouth aperture is stable for the duration of the vowel.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-002",
+      "category": "singing",
+      "concept": "rapid_hindi_lyric",
+      "prompt": "Close-up of a 26-year-old Indian woman singing energetically, realistic video.",
+      "audio": "audio/rapid-hindi-line.wav",
+      "audio_notes": "A fast Hindi lyric line, roughly 6 syllables per second.",
+      "desired_attributes": [
+        "mouth keeps up with syllable rate",
+        "visible articulation per syllable"
+      ],
+      "common_failure": "Mouth blurs into generic flapping; syllable boundaries are lost.",
+      "across_clip": "Articulation rate tracks the audio for the whole line.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-003",
+      "category": "singing",
+      "concept": "retroflex_consonants",
+      "prompt": "Close-up of a 30-year-old Indian man singing, realistic video.",
+      "audio": "audio/retroflex-line.wav",
+      "audio_notes": "A Hindi line dense in retroflex stops. These are underweighted in the English talking-head corpora (HDTF, VoxCeleb2) that supervise LatentSync and MuseTalk.",
+      "desired_attributes": [
+        "distinct articulation on retroflex consonants"
+      ],
+      "common_failure": "Collapses to the nearest English viseme. This is the direct test of whether the English-supervised viseme mapping transfers to Hindi.",
+      "across_clip": "Consonant articulation is visible, not smoothed away.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-004",
+      "category": "singing",
+      "concept": "aspirated_stops",
+      "prompt": "Close-up of a 26-year-old Indian woman singing, realistic video.",
+      "audio": "audio/aspirated-line.wav",
+      "audio_notes": "A line dense in aspirated stops — bh, dh, gh.",
+      "desired_attributes": [
+        "visible aspiration burst on the plosives"
+      ],
+      "common_failure": "Aspirated and unaspirated pairs render identically.",
+      "across_clip": "Plosive articulation is present throughout.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "high",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-005",
+      "category": "singing",
+      "concept": "hinglish_code_switch",
+      "prompt": "Close-up of a 24-year-old Indian woman singing, realistic video.",
+      "audio": "audio/hinglish-line.wav",
+      "audio_notes": "A Hinglish line that switches from Hindi to English mid-phrase.",
+      "desired_attributes": [
+        "sync holds across the switch point"
+      ],
+      "common_failure": "Sync degrades at the language boundary.",
+      "across_clip": "No sync discontinuity at the switch.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "high",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-006",
+      "category": "singing",
+      "concept": "sync_under_head_movement",
+      "prompt": "A 26-year-old Indian woman singing while moving her head and swaying, realistic video.",
+      "audio": "audio/rapid-hindi-line.wav",
+      "audio_notes": "Same audio as VID-SING-002, deliberately. The only variable is head movement.",
+      "desired_attributes": [
+        "sync survives head rotation",
+        "mouth region stays registered to the face"
+      ],
+      "common_failure": "Crop-and-paste inpainting drifts off the face as the head turns — the known weakness of inpainting-based lip-sync, and the reason arm C is in the bake-off.",
+      "across_clip": "Mouth region stays aligned through every head turn.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "lse",
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-007",
+      "category": "singing",
+      "concept": "teeth_and_tongue",
+      "prompt": "Tight close-up of a 26-year-old Indian woman singing, realistic video.",
+      "audio": "audio/sustained-aa-2s.wav",
+      "audio_notes": "Same sustained vowel as VID-SING-001, but framed tight so the mouth interior is large in frame.",
+      "desired_attributes": [
+        "coherent teeth",
+        "plausible tongue position",
+        "no mush"
+      ],
+      "common_failure": "Mouth interior renders as a blurry dark patch. Reported as a known MuseTalk weakness.",
+      "across_clip": "Mouth interior stays coherent for the whole vowel.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "priority": "high",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-008",
+      "category": "singing",
+      "concept": "body_on_the_beat",
+      "prompt": "A 26-year-old Indian woman singing and moving to the rhythm of the song, medium shot, realistic video.",
+      "audio": "audio/rhythmic-4bar.wav",
+      "audio_notes": "Four bars with a clear beat.",
+      "desired_attributes": [
+        "body movement aligned to the beat"
+      ],
+      "common_failure": "In arms A and B the body motion is generated with no access to the audio, so it cannot be on the beat — only the mouth is repaired. This case is designed to separate arm C from A and B, and is the reason arm C is in the bake-off at all.",
+      "across_clip": "Movement stays on the beat for all four bars.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "priority": "critical",
+      "image": "stills/singer.png",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-009",
+      "category": "singing",
+      "concept": "silence_stops_the_mouth",
+      "prompt": "Close-up of a 26-year-old Indian woman singing, realistic video.",
+      "audio": "audio/probe-vocal-then-silence.wav",
+      "image": "stills/singer.png",
+      "audio_notes": "2.5s of sung vocal followed by 2.5s of TRUE digital silence. Demucs vocal stems are not silent in their gaps — they sit around -62dB — so this probe uses synthesised silence to separate 'responds to bleed' from 'responds to music'.",
+      "desired_attributes": [
+        "mouth stops moving when the vocal stops",
+        "mouth is at rest during silence"
+      ],
+      "common_failure": "Mouth keeps articulating through the silent half. Observed by Biren on the first arm C reel: 'when simply music was in the end, still mouth movement was there.'",
+      "across_clip": "Articulation is present in the first half and absent in the second.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-010",
+      "category": "singing",
+      "concept": "instrumental_stops_the_mouth",
+      "prompt": "Close-up of a 26-year-old Indian woman singing, realistic video.",
+      "audio": "audio/probe-vocal-then-music.wav",
+      "image": "stills/singer.png",
+      "audio_notes": "2.5s of sung vocal followed by 2.5s of the SAME song's instrumental stem, no vocal. This is the reported failure reproduced under control.",
+      "desired_attributes": [
+        "mouth stops when the vocal stops",
+        "instrumental passage does not drive articulation"
+      ],
+      "common_failure": "Mouth keeps singing over the instrumental. Fatal for a music video, where every song has an intro, a break and an outro with no vocal.",
+      "across_clip": "Articulation present in the first half, absent in the second.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-011",
+      "category": "singing",
+      "concept": "prompt_vs_audio_drives_mouth",
+      "prompt": "A 26-year-old Indian woman standing still and listening quietly, lips closed and relaxed, calm neutral expression, realistic video.",
+      "audio": "audio/probe-vocal-then-silence.wav",
+      "image": "stills/singer.png",
+      "audio_notes": "IDENTICAL audio to VID-SING-009. The only variable is the prompt, which no longer says 'singing'.",
+      "desired_attributes": [
+        "lips closed and still throughout"
+      ],
+      "common_failure": "Control for VID-SING-009/010. Those kept mouthing through silence AND through instrumental, but their prompt said 'singing' — so the articulation may be prompt-driven rather than audio-driven. If the mouth goes still here, the prompt is the lever and per-segment prompting fixes it cheaply. If it keeps moving, S2V animates a mouth regardless of both prompt and audio, and the fix is architectural: VAD-segment the song and only run S2V over vocal-active spans.",
+      "across_clip": "Lips remain closed for the whole clip.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-SING-012",
+      "category": "singing",
+      "concept": "still_face_floor",
+      "prompt": "A 26-year-old Indian woman standing quietly, calm neutral expression, realistic video.",
+      "audio": "audio/silence-5s.wav",
+      "image": "stills/singer.png",
+      "audio_notes": "Five seconds of total digital silence. This is a CONTROL, not a test: it establishes the floor value of mouth_activity for this pipeline. Without it the 0.6 'stopped' threshold used on VID-SING-009/010/011 is an arbitrary number, and the arm C finding is directional rather than measured.",
+      "desired_attributes": [
+        "establishes the mouth_activity floor"
+      ],
+      "common_failure": "n/a — this is the reference the other three are scored against.",
+      "across_clip": "Whatever it does is the baseline.",
+      "must_obey": false,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "priority": "critical",
+      "owner": "beenga-video-os"
+    },
+    {
+      "id": "VID-DANCE-001",
+      "category": "indian_dance",
+      "concept": "bharatanatyam_mudras",
+      "prompt": "An Indian classical dancer performing bharatanatyam, holding precise hand mudras with fingers in exact positions, araimandi half-sitting stance, realistic video.",
+      "desired_attributes": [
+        "mudra finger positions are precise and held",
+        "araimandi stance maintained",
+        "hands do not collapse into generic gestures"
+      ],
+      "common_failure": "Fingers blur into generic dance hands; the codified mudra shape is approximated rather than held. A Western-weighted motion corpus has little bharatanatyam in it.",
+      "across_clip": "Mudra shape holds for the duration rather than decaying into a loose hand.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "id": "VID-DANCE-002",
+      "category": "indian_dance",
+      "concept": "kathak_chakkar_spin",
+      "prompt": "An Indian kathak dancer performing fast chakkar spins, upright posture, arms held out, spinning continuously, realistic video.",
+      "desired_attributes": [
+        "continuous rotation",
+        "upright axis maintained",
+        "body stays coherent through the spin"
+      ],
+      "common_failure": "Fast rotation is where video models smear or teleport limbs. Kathak chakkars are faster and more sustained than most Western dance rotation.",
+      "across_clip": "Rotation continues without the body dissolving or the axis wandering.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "id": "VID-DANCE-003",
+      "category": "indian_dance",
+      "concept": "bhangra_shoulder_movement",
+      "prompt": "A Punjabi man performing bhangra, energetic raised-arm shoulder movements, bouncing knees, realistic video.",
+      "desired_attributes": [
+        "raised-arm bhangra posture",
+        "distinct shoulder motion",
+        "energetic bounce"
+      ],
+      "common_failure": "Bhangra has a specific shoulder and arm vocabulary that generic 'dancing' does not produce.",
+      "across_clip": "The vocabulary stays bhangra rather than drifting into generic dance.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "id": "VID-DANCE-004",
+      "category": "indian_dance",
+      "concept": "garba_circular",
+      "prompt": "Women performing garba in a circle during navratri, clapping and turning in formation, realistic video.",
+      "desired_attributes": [
+        "circular formation",
+        "synchronised clap and turn",
+        "multiple dancers coherent"
+      ],
+      "common_failure": "Group formation plus repetitive synchronised motion — two things video models handle badly at once.",
+      "across_clip": "Formation holds; dancers do not merge or drift out of the circle.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "id": "VID-DANCE-005",
+      "category": "indian_dance",
+      "concept": "sari_under_spin",
+      "prompt": "An Indian woman in a silk sari spinning quickly, the sari flaring outward with the rotation, full body, realistic video.",
+      "desired_attributes": [
+        "sari flares with rotation",
+        "pleats stay coherent under speed",
+        "fabric has weight"
+      ],
+      "common_failure": "The two cloth cases that passed tested gentle movement — a walk and a turn. Fast rotation is the real test of garment physics, and a sari under a spin is the Indian-specific version of it.",
+      "across_clip": "Fabric behaves consistently through the whole spin rather than smearing at peak speed.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "id": "VID-DANCE-006",
+      "category": "indian_dance",
+      "concept": "dupatta_under_dance",
+      "prompt": "An Indian woman dancing energetically in a kurti with a long dupatta, the dupatta swinging with her arms, realistic video.",
+      "desired_attributes": [
+        "dupatta swings with the arms",
+        "stays one continuous piece",
+        "does not clip through the body"
+      ],
+      "common_failure": "VID-CLOTH-002 passed on a walk. Dance is faster and less predictable, and the dupatta interacts with moving arms rather than trailing behind.",
+      "across_clip": "Dupatta remains one piece and tracks the arms for the whole clip.",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "t2v",
+      "duration_s": 5,
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "why": "Probing the one remaining candidate for a defect that is BOTH video-specific and India-specific. Every India-specific defect found so far has been appearance, which belongs to beenga-image. If a training target exists for this repo, it is most likely here."
+    },
+    {
+      "prompt": "Close-up of a 26-year-old Indian woman singing, realistic video.",
+      "image": "stills/singer.png",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "category": "singing",
+      "id": "VID-SING-013",
+      "concept": "raw_stem_control",
+      "audio": "audio/probe2-raw.wav",
+      "audio_notes": "REBUILT 2026-08-16. The first version drew its window from a stretch where the vocal half was itself quiet, so BOTH halves sat near the mouth-activity floor and the ratio was noise on small numbers — a null result caused by the probe, not the model. Now constructed: a verified-loud vocal head (-15.8dB mean) shared with VID-SING-014, then 2.5s of the RAW Demucs gap (-61.1dB mean, -43.7dB peak).",
+      "desired_attributes": [
+        "mouth stops when the vocal stops"
+      ],
+      "common_failure": "Control for VID-SING-014. Establishes what the ungated stem does.",
+      "across_clip": "Articulation present in the first half, ideally absent in the second."
+    },
+    {
+      "prompt": "Close-up of a 26-year-old Indian woman singing, realistic video.",
+      "image": "stills/singer.png",
+      "must_obey": true,
+      "default_behavior": false,
+      "needs": "s2v",
+      "duration_s": 5,
+      "instrument": "mouth_activity",
+      "owner": "beenga-video-os",
+      "priority": "critical",
+      "category": "singing",
+      "id": "VID-SING-014",
+      "concept": "gated_stem_fix",
+      "audio": "audio/probe2-gated.wav",
+      "audio_notes": "REBUILT 2026-08-16. IDENTICAL loud vocal head to VID-SING-013. The only difference is the tail, gated by scripts/gate-vocal.mjs at -28dB to -91dB flat — true digital silence. One variable.",
+      "desired_attributes": [
+        "mouth stops when the vocal stops"
+      ],
+      "common_failure": "If this stops and VID-SING-013 does not, gating the stem is the fix for the music-drives-the-mouth defect and no pipeline restructuring is needed.",
+      "across_clip": "Articulation present in the first half, absent in the second."
+    }
+  ],
+  "ownership": "Production shots start from a reference still and run through i2v/s2v, so the still decides WHO the person is and WHAT they are wearing, and the video model decides what happens after frame 1. Appearance defects (ceremonial default, garment, complexion) are therefore beenga-image's to fix, on stills, where a sample costs $0.001 instead of $0.05. This suite owns the temporal failures that have no still-image equivalent: motion integrity, cloth and hair dynamics, attribute decay across a clip, lip-sync, and long-form joins. Added 2026-08-16: an indian_dance category, probing whether India-specific MOTION and garment-physics defects exist. This is the last candidate for a video-side training target."
+}
