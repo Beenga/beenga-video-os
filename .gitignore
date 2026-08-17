@@ -15,3 +15,7 @@ dataset/
 # the card, which is editable upstream. A snapshot at a pinned SHA is the whole proof.
 .DS_Store
 cog/__pycache__/
+
+# Build-time token, written on the builder only — must never be committed
+cog/.replicate_token
+.replicate_token

@@ -93,7 +93,7 @@
       "id": "VID-MOT-005",
       "category": "motion",
       "concept": "group_dance_crowd",
-      "prompt": "Four young Indian friends dancing together at a house party, casual clothes, realistic video.",
+      "prompt": "Four Indian friends in their late twenties dancing together at a house party, casual clothes, realistic video.",
       "desired_attributes": [
         "exactly four people",
         "distinct individuals",
@@ -106,7 +106,8 @@
       "needs": "t2v",
       "duration_s": 5,
       "priority": "high",
-      "owner": "beenga-video-os"
+      "owner": "beenga-video-os",
+      "age_note": "Rewritten 2026-08-16. 'young' with no stated age is age-ambiguous, and age-ambiguous depictions of people are a category this project refuses to generate. Every case featuring a person now states an adult age."
     },
     {
       "id": "VID-MOT-006",
@@ -365,7 +366,7 @@
       "id": "VID-DEF-001",
       "category": "defaults",
       "concept": "generic_indian_scene",
-      "prompt": "A young Indian woman standing on a rooftop in Delhi, realistic video.",
+      "prompt": "A 26-year-old Indian woman standing on a rooftop in Delhi, realistic video.",
       "desired_attributes": [
         "contemporary setting",
         "modern everyday clothing"
@@ -378,7 +379,8 @@
       "duration_s": 5,
       "priority": "critical",
       "owner": "beenga-image",
-      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo."
+      "owner_note": "Appearance is fixed by the reference still in an image-to-video pipeline, so this defect belongs to beenga-image and is measured there on stills. Kept here as a t2v regression probe only — do not spend on fixing it in this repo.",
+      "age_note": "Rewritten 2026-08-16. 'young' with no stated age is age-ambiguous, and age-ambiguous depictions of people are a category this project refuses to generate. Every case featuring a person now states an adult age."
     },
     {
       "id": "VID-DEF-002",
@@ -899,5 +901,6 @@
       "across_clip": "Articulation present in the first half, absent in the second."
     }
   ],
-  "ownership": "Production shots start from a reference still and run through i2v/s2v, so the still decides WHO the person is and WHAT they are wearing, and the video model decides what happens after frame 1. Appearance defects (ceremonial default, garment, complexion) are therefore beenga-image's to fix, on stills, where a sample costs $0.001 instead of $0.05. This suite owns the temporal failures that have no still-image equivalent: motion integrity, cloth and hair dynamics, attribute decay across a clip, lip-sync, and long-form joins. Added 2026-08-16: an indian_dance category, probing whether India-specific MOTION and garment-physics defects exist. This is the last candidate for a video-side training target."
+  "ownership": "Production shots start from a reference still and run through i2v/s2v, so the still decides WHO the person is and WHAT they are wearing, and the video model decides what happens after frame 1. Appearance defects (ceremonial default, garment, complexion) are therefore beenga-image's to fix, on stills, where a sample costs $0.001 instead of $0.05. This suite owns the temporal failures that have no still-image equivalent: motion integrity, cloth and hair dynamics, attribute decay across a clip, lip-sync, and long-form joins. Added 2026-08-16: an indian_dance category, probing whether India-specific MOTION and garment-physics defects exist. This is the last candidate for a video-side training target.",
+  "content_policy": "Every case featuring a person states an explicit adult age. Age-ambiguous prompts are not used, because a generative model asked for a 'young' person will sometimes render one who reads as a minor. This is a benchmark-level guard, not a filter — see CONTENT-POLICY.md."
 }

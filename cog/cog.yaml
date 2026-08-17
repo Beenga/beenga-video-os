@@ -26,6 +26,11 @@ build:
   python_packages:
     - "requests==2.32.3"
 
+
+# NOTE: cog copies the whole build directory into the image at /src, so a
+# `.replicate_token` file placed there on the BUILD MACHINE ends up baked in.
+# That file is gitignored and exists only on the builder. See predict.py.
+
 predict: "predict.py:Predictor"
 
 image: "r8.im/beenga/beenga-video-1"
