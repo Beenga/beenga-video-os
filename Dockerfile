@@ -50,6 +50,6 @@ RUN pip3 install --no-cache-dir \
 # Beenga's fork of the inference code, not upstream's.
 RUN git clone --depth 1 https://github.com/Beenga/Wan2.2.git /app/Wan2.2
 
-COPY handler.py /app/handler.py
+COPY rp_handler.py /app/rp_handler.py
 
-CMD ["python3", "-u", "/app/handler.py"]
+CMD ["python3", "-u", "/app/rp_handler.py"]

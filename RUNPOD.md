@@ -74,7 +74,7 @@ No build machine is currently provisioned — the DigitalOcean builder was
 destroyed. Two options:
 
 **GitHub integration (preferred, no builder needed).** Point the RunPod console
-at this repo with `runpod/` as the build context; RunPod builds and hosts the
+at this repo with repo root as the build context; RunPod builds and hosts the
 image.
 
 **Manual build.** Requires a Linux x86 host with Docker:
