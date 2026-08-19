@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/python3.11 /usr/bin/python3
 
-WORKDIR /app
+WORKDIR /
 
 # Pinned to Wan's own requirements. transformers is capped there — do not float it.
 #
@@ -50,6 +50,6 @@ RUN pip3 install --no-cache-dir \
 # Beenga's fork of the inference code, not upstream's.
 RUN git clone --depth 1 https://github.com/Beenga/Wan2.2.git /app/Wan2.2
 
-COPY rp_handler.py /app/rp_handler.py
+COPY rp_handler.py /
 
-CMD ["python3", "-u", "/app/rp_handler.py"]
+CMD ["python3", "-u", "rp_handler.py"]

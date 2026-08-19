@@ -309,8 +309,15 @@ def handler(job):
     }
 
 
-# Runs during worker init, before the first request is accepted. On a fresh
-# volume this is a ~45 GB download; afterwards it is a file-exists check.
-ensure_weights()
-
-runpod.serverless.start({"handler": handler})
+if __name__ == "__main__":
+    # ⚠ The __main__ guard is not decoration. RunPod's GitHub integration
+    # statically scans for this exact shape — `runpod.serverless.start` inside
+    # `if __name__ == '__main__':`, as in runpod-workers/worker-basic — and
+    # reports "a handler function is required for queue-based endpoints" when it
+    # cannot find it, even though a perfectly good handler is present. Calling
+    # start() at module level is valid Python and fails that check.
+    #
+    # It is also correct on its own terms: ensure_weights() pulls ~45 GB, and
+    # nothing that heavy should fire merely because something imported this file.
+    ensure_weights()
+    runpod.serverless.start({"handler": handler})
