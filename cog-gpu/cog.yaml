@@ -1,0 +1,79 @@
+# Beenga Sync 1 — the lip-sync engine, running Beenga's own weights.
+#
+#   cog push r8.im/beenga/beenga-sync-1
+#
+# ── WHY THIS EXISTS, AND WHY IT IS NOT THE ORCHESTRATOR ──────────────────────
+#
+# beenga/beenga-video-1 calls Replicate's hosted wan-video/* endpoints over the
+# API. That works, and it means the product stops working the day Replicate
+# removes those models. The whole point of vendoring the weights was to remove
+# dependencies on repositories and services we do not control, and leaving the
+# serving layer as an API call to someone else undoes most of it.
+#
+# So this one runs the weights. No Wan API calls. The checkpoint is pulled from
+# bkjha8/beenga-sync-14b — Beenga's own mirror — and baked in at build time.
+#
+# ── HARD-WON SETTINGS, from beenga-image's HANDOFF ──────────────────────────
+#
+# cuda 12.4, NOT 12.8. cog maps 12.8 to an Ubuntu 24.04 base which enforces
+# PEP 668, and the system Python is then externally managed. That broke two
+# separate builds on the image project, in two different places.
+build:
+  gpu: true
+  cuda: "12.4"
+  python_version: "3.11"
+  system_packages:
+    - "ffmpeg"
+    - "git"
+  python_packages:
+    # Pinned to Wan's own requirements.txt. transformers is capped there — do not
+    # float it.
+    - "torch==2.6.0"
+    - "torchvision"
+    - "torchaudio"
+    - "opencv-python>=4.9.0.80"
+    - "diffusers>=0.31.0"
+    - "transformers>=4.49.0,<=4.51.3"
+    - "tokenizers>=0.20.3"
+    - "accelerate>=1.1.1"
+    - "tqdm"
+    - "imageio[ffmpeg]"
+    - "imageio-ffmpeg"
+    - "easydict"
+    - "ftfy"
+    - "numpy>=1.23.5,<2"
+    - "librosa"
+    - "soundfile"
+    - "huggingface_hub"
+    # ⚠ NOT IN WAN'S requirements.txt, BUT ITS CODE IMPORTS THEM.
+    #
+    # Their requirements.txt is incomplete — these come in transitively in the
+    # authors' own environment and are simply absent here. einops is the one that
+    # failed setup on Replicate; the rest were found by listing every import under
+    # wan/ and checking which the built image lacked, so the next build does not
+    # discover them one at a time.
+    #
+    # peft/decord/omegaconf/loguru are used by the wider Wan codebase (animate,
+    # pose). They are small, and a missing import at setup costs a whole build
+    # cycle, so they go in rather than being trimmed to the S2V path exactly.
+    - "einops"
+    - "decord"
+    - "loguru"
+    - "omegaconf"
+    - "peft"
+  run:
+    # ⚠ flash_attn is in Wan's requirements and is NOT installed here on purpose.
+    # It compiles CUDA kernels, takes hours, and fails often. wan/modules/attention.py
+    # sets FLASH_ATTN_2_AVAILABLE = False when the import fails and falls back to
+    # torch scaled_dot_product_attention. Verified in the source before deciding.
+    #
+    # Beenga's fork of the inference code, not upstream's.
+    - "git clone --depth 1 https://github.com/Beenga/Wan2.2.git /src/Wan2.2"
+    # The checkpoint, from Beenga's own mirror rather than Wan-AI's. ~49GB.
+    # Baked in, not downloaded at boot: beenga-image tried boot-time download and
+    # abandoned it after repeated RemoteProtocolError partway through.
+    - "python3 -c \"from huggingface_hub import snapshot_download; snapshot_download('bkjha8/beenga-sync-14b', local_dir='/src/ckpt', max_workers=8)\""
+
+predict: "predict.py:Predictor"
+
+image: "r8.im/beenga/beenga-sync-1"
