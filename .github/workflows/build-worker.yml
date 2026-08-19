@@ -57,8 +57,11 @@ jobs:
           push: true
           # Never :latest — it is mutable and makes cache behaviour impossible to
           # reason about when a deploy misbehaves.
+          # ⚠ Lowercase, hardcoded. Docker repository names must be lowercase and
+          # the org is "Beenga" -- ${{ github.repository_owner }} interpolates the
+          # capital B and buildx rejects the tag outright.
           tags: |
-            ghcr.io/${{ github.repository_owner }}/beenga-worker:${{ github.sha }}
-            ghcr.io/${{ github.repository_owner }}/beenga-worker:v1
+            ghcr.io/beenga/beenga-worker:${{ github.sha }}
+            ghcr.io/beenga/beenga-worker:v1
           cache-from: type=gha
           cache-to: type=gha,mode=max
