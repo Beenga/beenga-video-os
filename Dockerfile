@@ -24,6 +24,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /
 
+# ── Python deps ──────────────────────────────────────────────────────────────
+#
 # Pinned to Wan's own requirements. transformers is capped there — do not float it.
 #
 # ⚠ einops/decord/loguru/omegaconf/peft are NOT in Wan's requirements.txt but its
@@ -31,30 +33,38 @@ WORKDIR /
 # authors' environment and are simply absent in a clean image. einops is the one
 # that failed setup on Replicate — the rest were found by listing every import
 # under wan/ so the next build does not discover them one at a time.
+COPY requirements.txt /requirements.txt
+RUN pip3 install --no-cache-dir -r /requirements.txt \
+ && python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
+
+# ── flash-attn ───────────────────────────────────────────────────────────────
 #
-# ⚠ flash-attn IS required for usable speed. Installed from a PREBUILT WHEEL.
+# ⚠ REQUIRED FOR USABLE SPEED, and it must come AFTER torch is installed —
+# selecting the wheel reads torch's ABI, so ordering this before the pip install
+# above fails with ModuleNotFoundError: No module named 'torch'.
 #
-# Earlier builds omitted it on the grounds that it "compiles CUDA kernels, takes
-# hours, and fails often". That is true of `pip install flash-attn`, which builds
-# from source -- and it wrongly ruled out the prebuilt wheels, which install in
+# Earlier builds omitted flash-attn on the grounds that it "compiles CUDA kernels,
+# takes hours, and fails often". True of `pip install flash-attn`, which builds
+# from source — and it wrongly ruled out the prebuilt wheels, which install in
 # seconds.
 #
 # The cost of omitting it was measured, not guessed: with the SDPA fallback a
-# 4.74s clip took 1471.8s (310x realtime). The same model and resolution on a
-# hosted endpoint with flash-attn took 65-76s. Attention dominates video
-# diffusion -- sequences are frames x patches -- so losing the fused varlen
-# kernel costs roughly 20x.
+# 4.74s clip took 1471.8s (310x realtime). The same model at the same resolution
+# on a hosted endpoint with flash-attn took 65–76s. Attention dominates video
+# diffusion — sequences are frames x patches — so losing the fused varlen kernel
+# costs roughly 20x.
 #
-# The wheel must match the image exactly: cu12, torch 2.6, cp311, linux_x86_64.
-#
-# The SDPA fallback stays in Beenga/Wan2.2 regardless: it costs nothing when
-# flash-attn is present and keeps the code runnable where it is not.
 # ⚠ The ABI variant is DETECTED, not guessed. Choosing wrong installs cleanly and
-# then fails at import with:
+# only fails at import with:
 #   undefined symbol: _ZN3c104cuda29c10_cuda_check_implementationEiPKcS2_ib
 # which is what happened when this was hardcoded to cxx11abiFALSE on the old rule
-# that PyPI torch ships the pre-C++11 ABI. Recent torch builds flipped that, so
-# the wheel is now selected from what torch itself reports.
+# that PyPI torch ships the pre-C++11 ABI. Recent torch builds flipped that.
+#
+# The import check is the point: the wrong wheel installs silently and would
+# otherwise surface at runtime, after a worker cold start and a 45 GB model load.
+#
+# The SDPA fallback stays in Beenga/Wan2.2 regardless — it costs nothing when
+# flash-attn is present and keeps the code runnable where it is not.
 RUN set -eux; \
     ABI=$(python3 -c "import torch;print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')"); \
     echo "torch reports cxx11abi=$ABI"; \
