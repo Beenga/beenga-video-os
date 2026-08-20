@@ -134,6 +134,57 @@ frame — that was pure black after frame 0. Valid clips measure ~90–150; that
 failure measured 16.8. Without this guard, that class of failure ships to users
 while the API reports success.
 
+## First successful run — 2026-08-20
+
+Beenga's own weights, on a GPU we control. No Wan API, no Replicate.
+
+| | |
+|---|---|
+| Cold start | **7.2s** (FlashBoot snapshot; weights already on the volume) |
+| Generation | **1471.8s** for 4.74s of video |
+| Output | 832x448, 30fps, 4.74s, mean luma 86.9 (passed the black-render gate) |
+| GPU | RTX 6000 Ada 48GB, US-IL-1 |
+
+⚠ **310x realtime. The cost model assumed 14x, and was wrong by a factor of 22.**
+
+| | assumed @14x | measured @310x |
+|---|---|---|
+| 5s clip | $0.14 | **$0.50** |
+| 3-minute video | $0.85 | **~$19** |
+
+At that rate self-hosting barely beats fal's $27 and is unusable interactively.
+
+### The cause, and the fix
+
+`flash_attention()` falls back to torch SDPA because flash-attn is not installed.
+That fallback is what made the run possible at all, but attention is the dominant
+cost in video diffusion — sequences are frames x patches — and losing the fused
+varlen kernel is what costs the 22x.
+
+The Dockerfile justified omitting flash-attn on the grounds that it "compiles CUDA
+kernels, takes hours, and fails often". True of `pip install flash-attn` from
+source. **Prebuilt wheels exist and install in seconds:**
+
+```
+https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1/\
+flash_attn-2.8.3.post1+cu12torch2.6cxx11abiFALSE-cp311-cp311-linux_x86_64.whl
+```
+
+Matches this image exactly — cu12, torch 2.6, cp311, linux_x86_64. `cxx11abiFALSE`
+is the right variant for PyPI torch builds, which ship with `_GLIBCXX_USE_CXX11_ABI`
+false.
+
+**Keep the SDPA fallback in the fork regardless.** It costs nothing when flash-attn
+is present and keeps the code runnable where it is not.
+
+### Deploying a fix requires draining workers
+
+Repointing the template at a new image does **not** recycle running workers. Two
+runs failed identically on already-fixed code because RunPod kept serving a warm
+worker with the previous image — visible as an unchanged traceback line number and
+a ~16s delayTime with no image pull. Scale `workersMax` to 0, wait for the worker
+count to reach zero, then scale back up.
+
 ## Not done
 
 - Quantized weights. Q8/fp8 exist and would cut ~17 GB, but they are not a
