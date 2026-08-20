@@ -3,15 +3,17 @@
 #
 # ⚠ WHY THIS IS A SCRIPT AND NOT A ONE-LINER IN THE DOCKERFILE.
 #
-# Selecting the wheel is not as simple as reading torch's ABI flag.
-# torch._C._GLIBCXX_USE_CXX11_ABI reported FALSE, and the FALSE wheel then failed
-# with `undefined symbol: _ZN3c105ErrorC2ENS_14SourceLocation NSt7__cxx1112basic_string...`
-# -- a request for __cxx11 strings, i.e. the opposite of what the flag claimed.
-# The flag does not reliably describe how libtorch was actually compiled.
+# The failure that cost several builds was NOT an ABI mismatch, despite looking
+# exactly like one. Installing the wheel pulled its declared `torch` dependency,
+# which has no upper bound, and pip quietly replaced the pinned torch 2.6.0+cu124
+# with 2.13.0+cu130 -- so a wheel built for torch 2.6 could not resolve symbols in
+# torch 2.13. Hence --no-deps below.
 #
-# So: try each variant, and let an import decide. If none work, print enough to
-# diagnose it rather than failing with "neither variant imports", which is what
-# an earlier version did after swallowing both errors into /dev/null.
+# The ABI loop stays because the correct variant still has to be chosen and torch's
+# own _GLIBCXX_USE_CXX11_ABI flag cannot be trusted to pick it. An import is the
+# only real proof, and on total failure this prints why rather than just "neither
+# variant imports" -- an earlier version swallowed both errors into /dev/null and
+# hid the torch version that turned out to be the actual bug.
 #
 # ⚠ flash-attn is not optional for speed. Measured on this exact model: with the
 # SDPA fallback a 4.74s clip took 1471.8s (310x realtime); a hosted endpoint with
@@ -26,7 +28,12 @@ BASE="https://github.com/Dao-AILab/flash-attention/releases/download/v${VER}"
 try_wheel() {
     local url="$1" label="$2"
     echo "===== trying ${label}"
-    if ! pip3 install --no-cache-dir --force-reinstall "$url" >/tmp/pip.log 2>&1; then
+    # ⚠ --no-deps IS LOAD-BEARING. The wheel declares `torch` with no upper bound,
+    # so a plain install silently UPGRADED torch 2.6.0+cu124 -> 2.13.0+cu130, and a
+    # wheel built for torch 2.6 then could not resolve symbols in torch 2.13. Every
+    # "ABI mismatch" seen while debugging this was actually that: pip quietly
+    # replacing the pinned torch underneath us. --force-reinstall made it worse.
+    if ! pip3 install --no-cache-dir --no-deps "$url" >/tmp/pip.log 2>&1; then
         echo "----- pip install failed for ${label}:"
         tail -n 12 /tmp/pip.log
         return 1
