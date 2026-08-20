@@ -10,7 +10,7 @@
 # cuda 12.4, NOT 12.8: 12.8 maps to an Ubuntu 24.04 base which enforces PEP 668,
 # making the system Python externally managed. That broke two builds on the
 # image project in two different places.
-ARG WAN_SHA=d776741
+ARG WAN_SHA=51f3107
 FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
