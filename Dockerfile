@@ -60,18 +60,15 @@ RUN pip3 install --no-cache-dir -r /requirements.txt \
 #
 # The SDPA fallback stays in Beenga/Wan2.2 regardless — it costs nothing when
 # flash-attn is present and keeps the code runnable where it is not.
-# ⚠ TRY BOTH ABI VARIANTS AND KEEP WHICHEVER IMPORTS.
+# ⚠ WHICH WHEEL WORKS IS FOUND BY SEARCH, NOT BY RULE.
 #
-# torch._C._GLIBCXX_USE_CXX11_ABI reported FALSE while the FALSE wheel failed with
-#   undefined symbol: _ZN3c105ErrorC2ENS_14SourceLocationENSt7__cxx1112basic_string...
-# i.e. it wanted __cxx11 strings. The flag does not reliably describe how libtorch
-# was actually compiled in recent builds, so selecting from it is guesswork
-# dressed up as detection. Both variants are ~190 MB and install in seconds; an
-# import is the only thing that actually proves compatibility, so that is the test.
+# The script searches a matrix of flash-attn releases x ABI variants and keeps the
+# first that imports. See install_flash_attn.sh for why: both ABI variants of one
+# release failed on the SAME symbol, so the variable is which torch build the wheel
+# was compiled against, not the ABI. It also asserts the torch pin survives --
+# installing a wheel without --no-deps silently replaced torch 2.6.0 with 2.13.0.
 COPY install_flash_attn.sh /install_flash_attn.sh
 RUN bash /install_flash_attn.sh
-assert v.startswith('2.6.0'), 'torch was replaced: '+v; \
-print('verified torch',v,'flash_attn',flash_attn.__version__)"
 
 # Beenga's fork of the inference code, not upstream's.
 ARG WAN_SHA
