@@ -197,6 +197,16 @@ def load_model():
     from wan.configs import WAN_CONFIGS
     from wan.speech2video import WanS2V
 
+    # ⚠ Report the attention backend explicitly. Without flash-attn the SDPA
+    # fallback still produces correct video, just ~20x slower — a failure mode
+    # that is invisible in the output and only shows up in the bill. Never assume
+    # which path is live.
+    from wan.modules import attention as _att
+    print(f"attention backend: flash_attn2={_att.FLASH_ATTN_2_AVAILABLE} "
+          f"flash_attn3={_att.FLASH_ATTN_3_AVAILABLE}")
+    print(f"gpu: {torch.cuda.get_device_name(0)} "
+          f"{torch.cuda.get_device_properties(0).total_memory/1e9:.0f}GB")
+
     cfg = WAN_CONFIGS["s2v-14B"]
     MODEL = WanS2V(
         config=cfg,
@@ -231,6 +241,11 @@ def handler(job):
     seed = int(inp.get("seed", -1))
     interpolate = bool(inp.get("interpolate", True))
     auto_voiced = bool(inp.get("auto_voiced", True))
+    # ⚠ OFF by default. offload_model shuttles the model between CPU and GPU
+    # between steps — a low-VRAM technique, and a large speed penalty. It was set
+    # while fighting OOM on a 44GB card; on the 48GB card this runs on, the ~28GB
+    # bf16 DiT fits at 480p with room, so paying that cost buys nothing.
+    offload = bool(inp.get("offload_model", False))
 
     work = Path(tempfile.mkdtemp(prefix="beenga-"))
     img = _fetch(image, str(work / "ref.png"))
@@ -269,7 +284,7 @@ def handler(job):
         sampling_steps=steps,
         guide_scale=guide,
         seed=seed,
-        offload_model=True,
+        offload_model=offload,
     )
 
     raw = work / "raw.mp4"
