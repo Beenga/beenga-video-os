@@ -10,6 +10,7 @@
 # cuda 12.4, NOT 12.8: 12.8 maps to an Ubuntu 24.04 base which enforces PEP 668,
 # making the system Python externally managed. That broke two builds on the
 # image project in two different places.
+ARG WAN_SHA=6cc36f9
 FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -32,8 +33,14 @@ WORKDIR /
 # under wan/ so the next build does not discover them one at a time.
 #
 # flash_attn is in Wan's requirements and is deliberately absent: it compiles
-# CUDA kernels, takes hours, and fails often. wan/modules/attention.py sets
-# FLASH_ATTN_2_AVAILABLE = False on import failure and falls back to torch SDPA.
+# CUDA kernels, takes hours, and fails often.
+#
+# ⚠ That is only safe because of a patch in Beenga/Wan2.2 (6cc36f9). Upstream's
+# s2v/model_s2v.py called the low-level flash_attention() directly, which opens
+# with `assert FLASH_ATTN_2_AVAILABLE` and has NO fallback -- so S2V alone hard-
+# required flash-attn while every other path degrades. It failed at the first
+# denoising step, after a 45GB checkpoint load. The fork now calls attention(),
+# upstream's own wrapper, which uses torch SDPA when flash-attn is missing.
 RUN pip3 install --no-cache-dir \
         torch==2.6.0 torchvision torchaudio \
         "opencv-python-headless>=4.9.0.80" \
@@ -48,7 +55,9 @@ RUN pip3 install --no-cache-dir \
         runpod
 
 # Beenga's fork of the inference code, not upstream's.
-RUN git clone --depth 1 https://github.com/Beenga/Wan2.2.git /app/Wan2.2
+ARG WAN_SHA
+RUN echo "wan=$WAN_SHA" && git clone --depth 1 https://github.com/Beenga/Wan2.2.git /app/Wan2.2 && \
+    git -C /app/Wan2.2 rev-parse --short HEAD > /app/wan-sha.txt
 
 COPY rp_handler.py /
 
