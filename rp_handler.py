@@ -31,6 +31,7 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import base64
 import subprocess
+import time
 import sys
 import tempfile
 import urllib.request
@@ -54,6 +55,7 @@ TARGET_FPS = 30
 BLACK_LUMA_THRESHOLD = 25.0
 
 MODEL = None
+ATTENTION_BACKEND = None
 
 # Written only after a verified-complete download. Its absence means the
 # checkpoint is missing or partial, and either way the fix is the same: fetch.
@@ -189,10 +191,14 @@ def find_voiced_start(path, window, floor_db=-40.0):
     return best_t if best_db > -900 else 0.0
 
 
+LOAD_SECONDS = None
+
+
 def load_model():
-    global MODEL
+    global MODEL, LOAD_SECONDS
     if MODEL is not None:
         return MODEL
+    _t0 = time.time()
     import torch
     from wan.configs import WAN_CONFIGS
     from wan.speech2video import WanS2V
@@ -202,8 +208,10 @@ def load_model():
     # that is invisible in the output and only shows up in the bill. Never assume
     # which path is live.
     from wan.modules import attention as _att
-    print(f"attention backend: flash_attn2={_att.FLASH_ATTN_2_AVAILABLE} "
-          f"flash_attn3={_att.FLASH_ATTN_3_AVAILABLE}")
+    global ATTENTION_BACKEND
+    ATTENTION_BACKEND = ("flash_attn2" if _att.FLASH_ATTN_2_AVAILABLE else
+                         "flash_attn3" if _att.FLASH_ATTN_3_AVAILABLE else "sdpa_fallback")
+    print(f"attention backend: {ATTENTION_BACKEND}")
     print(f"gpu: {torch.cuda.get_device_name(0)} "
           f"{torch.cuda.get_device_properties(0).total_memory/1e9:.0f}GB")
 
@@ -223,6 +231,8 @@ def load_model():
         init_on_cpu=True,
         convert_model_dtype=True,
     )
+    LOAD_SECONDS = round(time.time() - _t0, 1)
+    print(f"model loaded in {LOAD_SECONDS}s")
     return MODEL
 
 
@@ -268,6 +278,7 @@ def handler(job):
     torch.cuda.empty_cache()
     from wan.utils.utils import merge_video_audio, save_video
 
+    t_gen = time.time()
     video = model.generate(
         input_prompt=prompt,
         ref_image_path=str(img),
@@ -287,11 +298,18 @@ def handler(job):
         offload_model=offload,
     )
 
+    gen_seconds = round(time.time() - t_gen, 1)
+    print(f"generate() took {gen_seconds}s")
+
+    t_enc = time.time()
     raw = work / "raw.mp4"
     save_video(tensor=video[None], save_file=str(raw), fps=16,
                normalize=True, value_range=(-1, 1))
     merge_video_audio(video_path=str(raw), audio_path=str(aud))
 
+    encode_seconds = round(time.time() - t_enc, 1)
+
+    t_interp = time.time()
     out = raw
     if interpolate:
         # Motion-compensated, not frame duplication — the difference between
@@ -304,6 +322,9 @@ def handler(job):
             out = cand
         else:
             print(f"interpolation failed ({r.stderr[:160]}) — returning native 16fps")
+
+    interp_seconds = round(time.time() - t_interp, 1)
+    print(f"encode {encode_seconds}s | interpolate {interp_seconds}s")
 
     luma = measure_luma(out)
     if luma is not None and luma < BLACK_LUMA_THRESHOLD:
@@ -320,6 +341,17 @@ def handler(job):
             "voiced_start_s": round(start_at, 2),
             "mean_luma": round(luma, 1) if luma else None,
             "probe": probe.strip(),
+            # ⚠ Timings are returned, not just logged. RunPod exposes no API for
+            # worker logs, so anything only printed is invisible from here — which
+            # is how post-generation CPU work went unexamined for several runs
+            # while the GPU took the blame.
+            "timing": {
+                "model_load_s": LOAD_SECONDS,
+                "generate_s": gen_seconds,
+                "encode_s": encode_seconds,
+                "interpolate_s": interp_seconds,
+            },
+            "backend": ATTENTION_BACKEND,
         },
     }
 
