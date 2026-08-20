@@ -7,20 +7,30 @@
 # network volume mounted at /runpod-volume, so this image stays a few GB and a
 # code change does not mean re-shipping the checkpoint.
 #
+# ⚠ BASE IS THE OFFICIAL PYTORCH IMAGE, NOT nvidia/cuda.
+#
+# On nvidia/cuda + `pip install torch`, EVERY prebuilt flash-attn wheel failed --
+# 6 releases x 2 ABI variants, plus torch from both PyPI and download.pytorch.org
+# -- all with the same missing symbol:
+#   c10::Error::Error(SourceLocation, std::__cxx11::string)
+# Twelve independently built wheels cannot all be wrong about the same symbol, so
+# the torch they compile against differs from the one pip produces in that base.
+# This image ships the exact build they target.
+#
 # cuda 12.4, NOT 12.8: 12.8 maps to an Ubuntu 24.04 base which enforces PEP 668,
 # making the system Python externally managed. That broke two builds on the
 # image project in two different places.
 ARG WAN_SHA=51f3107
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+FROM pytorch/pytorch:2.6.0-cuda12.4-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        python3.11 python3.11-dev python3-pip ffmpeg git \
+# The base already provides Python and torch; only media/vcs tooling is missing.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg git \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/python3.11 /usr/bin/python3
+ && python3 -c "import sys, torch; print('base python', sys.version.split()[0], '| torch', torch.__version__, '| cuda', torch.version.cuda)"
 
 WORKDIR /
 
@@ -33,18 +43,6 @@ WORKDIR /
 # authors' environment and are simply absent in a clean image. einops is the one
 # that failed setup on Replicate — the rest were found by listing every import
 # under wan/ so the next build does not discover them one at a time.
-# ⚠ torch COMES FROM THE PYTORCH INDEX, NOT PyPI.
-#
-# Every prebuilt flash-attn wheel — 6 releases x 2 ABI variants, all tested —
-# failed against PyPI's torch 2.6.0+cu124 with the same missing symbol:
-#   c10::Error::Error(SourceLocation, std::__cxx11::string)
-# Since all twelve wanted the identical symbol, the wheels agree with each other
-# and it is our torch that is the odd one out. flash-attn builds against the
-# official download.pytorch.org builds, so that is where torch has to come from.
-RUN pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu124 \
-        torch==2.6.0 torchvision torchaudio \
- && python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
-
 # Everything else from PyPI. torch is already satisfied above, so it is not
 # re-resolved here.
 COPY requirements.txt /requirements.txt
