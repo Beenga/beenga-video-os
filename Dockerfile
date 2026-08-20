@@ -68,21 +68,8 @@ RUN pip3 install --no-cache-dir -r /requirements.txt \
 # was actually compiled in recent builds, so selecting from it is guesswork
 # dressed up as detection. Both variants are ~190 MB and install in seconds; an
 # import is the only thing that actually proves compatibility, so that is the test.
-RUN set -eu; \
-    BASE="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1"; \
-    WHL="flash_attn-2.8.3.post1+cu12torch2.6cxx11abi"; \
-    ok=0; \
-    for ABI in TRUE FALSE; do \
-      echo "== trying cxx11abi=$ABI"; \
-      pip3 install --no-cache-dir --force-reinstall \
-        "$BASE/${WHL}${ABI}-cp311-cp311-linux_x86_64.whl" >/dev/null 2>&1 || continue; \
-      if python3 -c "import flash_attn" 2>/dev/null; then \
-        echo "== flash_attn OK with cxx11abi=$ABI"; ok=1; break; \
-      fi; \
-      echo "== cxx11abi=$ABI installed but failed to import"; \
-    done; \
-    [ "$ok" = "1" ] || { echo "FATAL: neither flash-attn ABI variant imports"; exit 1; }; \
-    python3 -c "import flash_attn, torch; print('flash_attn', flash_attn.__version__, '| torch', torch.__version__)"
+COPY install_flash_attn.sh /install_flash_attn.sh
+RUN bash /install_flash_attn.sh
 
 # Beenga's fork of the inference code, not upstream's.
 ARG WAN_SHA
