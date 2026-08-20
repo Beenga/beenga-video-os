@@ -40,8 +40,9 @@ RUN pip3 install --no-cache-dir -r /requirements.txt \
 # ── flash-attn ───────────────────────────────────────────────────────────────
 #
 # ⚠ REQUIRED FOR USABLE SPEED, and it must come AFTER torch is installed —
-# selecting the wheel reads torch's ABI, so ordering this before the pip install
-# above fails with ModuleNotFoundError: No module named 'torch'.
+# the check below imports flash_attn, which imports torch, so ordering this
+# before the pip install above fails with ModuleNotFoundError: No module named
+# 'torch'.
 #
 # Earlier builds omitted flash-attn on the grounds that it "compiles CUDA kernels,
 # takes hours, and fails often". True of `pip install flash-attn`, which builds
@@ -54,23 +55,34 @@ RUN pip3 install --no-cache-dir -r /requirements.txt \
 # diffusion — sequences are frames x patches — so losing the fused varlen kernel
 # costs roughly 20x.
 #
-# ⚠ The ABI variant is DETECTED, not guessed. Choosing wrong installs cleanly and
-# only fails at import with:
-#   undefined symbol: _ZN3c104cuda29c10_cuda_check_implementationEiPKcS2_ib
-# which is what happened when this was hardcoded to cxx11abiFALSE on the old rule
-# that PyPI torch ships the pre-C++11 ABI. Recent torch builds flipped that.
-#
 # The import check is the point: the wrong wheel installs silently and would
 # otherwise surface at runtime, after a worker cold start and a 45 GB model load.
 #
 # The SDPA fallback stays in Beenga/Wan2.2 regardless — it costs nothing when
 # flash-attn is present and keeps the code runnable where it is not.
-RUN set -eux; \
-    ABI=$(python3 -c "import torch;print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')"); \
-    echo "torch reports cxx11abi=$ABI"; \
-    pip3 install --no-cache-dir \
-      "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1/flash_attn-2.8.3.post1+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"; \
-    python3 -c "import flash_attn; print('flash_attn OK', flash_attn.__version__)"
+# ⚠ TRY BOTH ABI VARIANTS AND KEEP WHICHEVER IMPORTS.
+#
+# torch._C._GLIBCXX_USE_CXX11_ABI reported FALSE while the FALSE wheel failed with
+#   undefined symbol: _ZN3c105ErrorC2ENS_14SourceLocationENSt7__cxx1112basic_string...
+# i.e. it wanted __cxx11 strings. The flag does not reliably describe how libtorch
+# was actually compiled in recent builds, so selecting from it is guesswork
+# dressed up as detection. Both variants are ~190 MB and install in seconds; an
+# import is the only thing that actually proves compatibility, so that is the test.
+RUN set -eu; \
+    BASE="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1"; \
+    WHL="flash_attn-2.8.3.post1+cu12torch2.6cxx11abi"; \
+    ok=0; \
+    for ABI in TRUE FALSE; do \
+      echo "== trying cxx11abi=$ABI"; \
+      pip3 install --no-cache-dir --force-reinstall \
+        "$BASE/${WHL}${ABI}-cp311-cp311-linux_x86_64.whl" >/dev/null 2>&1 || continue; \
+      if python3 -c "import flash_attn" 2>/dev/null; then \
+        echo "== flash_attn OK with cxx11abi=$ABI"; ok=1; break; \
+      fi; \
+      echo "== cxx11abi=$ABI installed but failed to import"; \
+    done; \
+    [ "$ok" = "1" ] || { echo "FATAL: neither flash-attn ABI variant imports"; exit 1; }; \
+    python3 -c "import flash_attn, torch; print('flash_attn', flash_attn.__version__, '| torch', torch.__version__)"
 
 # Beenga's fork of the inference code, not upstream's.
 ARG WAN_SHA
