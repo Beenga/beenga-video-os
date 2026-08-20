@@ -39,12 +39,21 @@ try_wheel() {
     # so a plain install silently UPGRADED torch 2.6.0+cu124 -> 2.13.0+cu130, and a
     # wheel built for torch 2.6 then could not resolve symbols in torch 2.13. Every
     # "ABI mismatch" seen while debugging this was actually that.
-    if ! pip3 install --no-cache-dir --no-deps "$url" >/tmp/pip.log 2>&1; then
+    # ⚠ BOTH FLAGS ARE REQUIRED, FOR OPPOSITE REASONS.
+    #   --force-reinstall : without it, pip sees flash_attn already installed at
+    #                       this version and reports "already satisfied", so the
+    #                       second ABI variant is never actually installed and
+    #                       silently re-tests the first one.
+    #   --no-deps         : without it, the wheel's unbounded `torch` dependency
+    #                       upgrades torch 2.6.0 -> 2.13.0 underneath us.
+    # Dropping either produces a confident-looking result that means nothing.
+    pip3 uninstall -y flash_attn >/dev/null 2>&1 || true
+    if ! pip3 install --no-cache-dir --no-deps --force-reinstall "$url" >/tmp/pip.log 2>&1; then
         echo "  ${label}: download/install failed"
         return 1
     fi
-    if python3 -c "import flash_attn" >/tmp/imp.log 2>&1; then
-        echo "  ${label}: IMPORTS"
+    if python3 -c "import flash_attn, flash_attn_2_cuda; print(flash_attn.__file__)" >/tmp/imp.log 2>&1; then
+        echo "  ${label}: IMPORTS ($(head -1 /tmp/imp.log))"
         return 0
     fi
     echo "  ${label}: $(grep -oE 'undefined symbol: [_A-Za-z0-9]+' /tmp/imp.log | head -1 | cut -c1-70)"
