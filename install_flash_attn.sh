@@ -22,39 +22,48 @@
 # instead of warning.
 set -u
 
-VER="${FLASH_ATTN_VERSION:-2.8.3.post1}"
-BASE="https://github.com/Dao-AILab/flash-attention/releases/download/v${VER}"
+# ⚠ TRY A MATRIX, NOT A GUESS.
+#
+# Both ABI variants of 2.8.3.post1 failed on the SAME missing symbol --
+#   c10::Error::Error(SourceLocation, std::__cxx11::string)
+# -- so the variable is not the ABI, it is which torch build the wheel was
+# compiled against. flash-attn publishes one "torch2.6" wheel per release, and
+# those releases span months of torch patch releases, so the right one has to be
+# found empirically. Each wheel is ~190MB and an import test takes seconds;
+# testing the matrix in one build beats one guess per build.
+VERSIONS="${FLASH_ATTN_VERSIONS:-2.7.4.post1 2.7.3 2.8.0.post2 2.8.1 2.8.2 2.8.3.post1}"
 
 try_wheel() {
     local url="$1" label="$2"
-    echo "===== trying ${label}"
     # ⚠ --no-deps IS LOAD-BEARING. The wheel declares `torch` with no upper bound,
     # so a plain install silently UPGRADED torch 2.6.0+cu124 -> 2.13.0+cu130, and a
     # wheel built for torch 2.6 then could not resolve symbols in torch 2.13. Every
-    # "ABI mismatch" seen while debugging this was actually that: pip quietly
-    # replacing the pinned torch underneath us. --force-reinstall made it worse.
+    # "ABI mismatch" seen while debugging this was actually that.
     if ! pip3 install --no-cache-dir --no-deps "$url" >/tmp/pip.log 2>&1; then
-        echo "----- pip install failed for ${label}:"
-        tail -n 12 /tmp/pip.log
+        echo "  ${label}: download/install failed"
         return 1
     fi
-    if python3 -c "import flash_attn; print('import ok, flash_attn', flash_attn.__version__)"; then
-        echo "===== SUCCESS with ${label}"
+    if python3 -c "import flash_attn" >/tmp/imp.log 2>&1; then
+        echo "  ${label}: IMPORTS"
         return 0
     fi
-    echo "----- import failed for ${label} (traceback above)"
+    echo "  ${label}: $(grep -oE 'undefined symbol: [_A-Za-z0-9]+' /tmp/imp.log | head -1 | cut -c1-70)"
     return 1
 }
 
-for ABI in TRUE FALSE; do
-    if try_wheel "${BASE}/flash_attn-${VER}+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl" \
-                 "cxx11abi=${ABI}"; then
-        exit 0
-    fi
+for VER in $VERSIONS; do
+    BASE="https://github.com/Dao-AILab/flash-attention/releases/download/v${VER}"
+    for ABI in TRUE FALSE; do
+        URL="${BASE}/flash_attn-${VER}+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"
+        if try_wheel "$URL" "v${VER} abi=${ABI}"; then
+            python3 -c "import flash_attn, torch; print('SELECTED flash_attn', flash_attn.__version__, 'against torch', torch.__version__)"
+            exit 0
+        fi
+    done
 done
 
-echo "===== no prebuilt wheel imported. diagnostics:"
-python3 - <<'PY'
+echo "===== no prebuilt wheel imported against this torch. diagnostics:"
+python3 - <<'PYEOF'
 import os, torch
 print("torch          :", torch.__version__)
 print("torch.cuda     :", torch.version.cuda)
@@ -63,8 +72,7 @@ lib = os.path.join(os.path.dirname(torch.__file__), "lib")
 for so in ("libc10.so", "libtorch_cpu.so"):
     p = os.path.join(lib, so)
     if os.path.exists(p):
-        # Ground truth: a cxx11-ABI build embeds the __cxx11 namespace marker.
         with open(p, "rb") as fh:
             print(f"{so:<16}: __cxx11 present ->", b"__cxx11" in fh.read())
-PY
+PYEOF
 exit 1
