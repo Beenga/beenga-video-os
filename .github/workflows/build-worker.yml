@@ -17,7 +17,15 @@ name: build-worker
 on:
   push:
     branches: [main]
-    paths: ["Dockerfile", "rp_handler.py", "requirements.txt", ".github/workflows/build-worker.yml"]
+    # ⚠ Every file the image is built FROM must be listed. install_flash_attn.sh
+    # was missing, so a fix to it triggered no build at all -- and the previous
+    # run's log was then read as if it were the result.
+    paths:
+      - "Dockerfile"
+      - "rp_handler.py"
+      - "requirements.txt"
+      - "install_flash_attn.sh"
+      - ".github/workflows/build-worker.yml"
   workflow_dispatch:
 
 jobs:
