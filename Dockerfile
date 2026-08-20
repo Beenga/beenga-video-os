@@ -46,15 +46,21 @@ WORKDIR /
 # kernel costs roughly 20x.
 #
 # The wheel must match the image exactly: cu12, torch 2.6, cp311, linux_x86_64.
-# cxx11abiFALSE is correct for PyPI torch builds, which ship with
-# _GLIBCXX_USE_CXX11_ABI = False. Picking abiTRUE against a FALSE torch produces
-# an import-time symbol error, not a build failure.
 #
 # The SDPA fallback stays in Beenga/Wan2.2 regardless: it costs nothing when
 # flash-attn is present and keeps the code runnable where it is not.
-RUN pip3 install --no-cache-dir \
-      "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1/flash_attn-2.8.3.post1+cu12torch2.6cxx11abiFALSE-cp311-cp311-linux_x86_64.whl" \
- && python3 -c "import flash_attn, torch; print('flash_attn', flash_attn.__version__, '| torch', torch.__version__, '| cxx11abi', torch._C._GLIBCXX_USE_CXX11_ABI)"
+# ⚠ The ABI variant is DETECTED, not guessed. Choosing wrong installs cleanly and
+# then fails at import with:
+#   undefined symbol: _ZN3c104cuda29c10_cuda_check_implementationEiPKcS2_ib
+# which is what happened when this was hardcoded to cxx11abiFALSE on the old rule
+# that PyPI torch ships the pre-C++11 ABI. Recent torch builds flipped that, so
+# the wheel is now selected from what torch itself reports.
+RUN set -eux; \
+    ABI=$(python3 -c "import torch;print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')"); \
+    echo "torch reports cxx11abi=$ABI"; \
+    pip3 install --no-cache-dir \
+      "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1/flash_attn-2.8.3.post1+cu12torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"; \
+    python3 -c "import flash_attn; print('flash_attn OK', flash_attn.__version__)"
 
 # Beenga's fork of the inference code, not upstream's.
 ARG WAN_SHA
