@@ -33,9 +33,24 @@ WORKDIR /
 # authors' environment and are simply absent in a clean image. einops is the one
 # that failed setup on Replicate — the rest were found by listing every import
 # under wan/ so the next build does not discover them one at a time.
-COPY requirements.txt /requirements.txt
-RUN pip3 install --no-cache-dir -r /requirements.txt \
+# ⚠ torch COMES FROM THE PYTORCH INDEX, NOT PyPI.
+#
+# Every prebuilt flash-attn wheel — 6 releases x 2 ABI variants, all tested —
+# failed against PyPI's torch 2.6.0+cu124 with the same missing symbol:
+#   c10::Error::Error(SourceLocation, std::__cxx11::string)
+# Since all twelve wanted the identical symbol, the wheels agree with each other
+# and it is our torch that is the odd one out. flash-attn builds against the
+# official download.pytorch.org builds, so that is where torch has to come from.
+RUN pip3 install --no-cache-dir --index-url https://download.pytorch.org/whl/cu124 \
+        torch==2.6.0 torchvision torchaudio \
  && python3 -c "import torch; print('torch', torch.__version__, 'cuda', torch.version.cuda)"
+
+# Everything else from PyPI. torch is already satisfied above, so it is not
+# re-resolved here.
+COPY requirements.txt /requirements.txt
+RUN grep -vE '^(torch|torchvision|torchaudio)([=<>]|$)' /requirements.txt > /req-rest.txt \
+ && pip3 install --no-cache-dir -r /req-rest.txt \
+ && python3 -c "import torch; v=torch.__version__; assert v.startswith('2.6.0'), 'torch replaced: '+v; print('torch pin intact:', v)"
 
 # ── flash-attn ───────────────────────────────────────────────────────────────
 #
