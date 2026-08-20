@@ -32,27 +32,29 @@ WORKDIR /
 # that failed setup on Replicate — the rest were found by listing every import
 # under wan/ so the next build does not discover them one at a time.
 #
-# flash_attn is in Wan's requirements and is deliberately absent: it compiles
-# CUDA kernels, takes hours, and fails often.
+# ⚠ flash-attn IS required for usable speed. Installed from a PREBUILT WHEEL.
 #
-# ⚠ That is only safe because of a patch in Beenga/Wan2.2 (6cc36f9). Upstream's
-# s2v/model_s2v.py called the low-level flash_attention() directly, which opens
-# with `assert FLASH_ATTN_2_AVAILABLE` and has NO fallback -- so S2V alone hard-
-# required flash-attn while every other path degrades. It failed at the first
-# denoising step, after a 45GB checkpoint load. The fork now calls attention(),
-# upstream's own wrapper, which uses torch SDPA when flash-attn is missing.
+# Earlier builds omitted it on the grounds that it "compiles CUDA kernels, takes
+# hours, and fails often". That is true of `pip install flash-attn`, which builds
+# from source -- and it wrongly ruled out the prebuilt wheels, which install in
+# seconds.
+#
+# The cost of omitting it was measured, not guessed: with the SDPA fallback a
+# 4.74s clip took 1471.8s (310x realtime). The same model and resolution on a
+# hosted endpoint with flash-attn took 65-76s. Attention dominates video
+# diffusion -- sequences are frames x patches -- so losing the fused varlen
+# kernel costs roughly 20x.
+#
+# The wheel must match the image exactly: cu12, torch 2.6, cp311, linux_x86_64.
+# cxx11abiFALSE is correct for PyPI torch builds, which ship with
+# _GLIBCXX_USE_CXX11_ABI = False. Picking abiTRUE against a FALSE torch produces
+# an import-time symbol error, not a build failure.
+#
+# The SDPA fallback stays in Beenga/Wan2.2 regardless: it costs nothing when
+# flash-attn is present and keeps the code runnable where it is not.
 RUN pip3 install --no-cache-dir \
-        torch==2.6.0 torchvision torchaudio \
-        "opencv-python-headless>=4.9.0.80" \
-        "diffusers>=0.31.0" \
-        "transformers>=4.49.0,<=4.51.3" \
-        "tokenizers>=0.20.3" \
-        "accelerate>=1.1.1" \
-        tqdm "imageio[ffmpeg]" imageio-ffmpeg easydict ftfy \
-        "numpy>=1.23.5,<2" librosa soundfile huggingface_hub \
-        einops decord loguru omegaconf peft \
-        hf_transfer \
-        runpod
+      "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3.post1/flash_attn-2.8.3.post1+cu12torch2.6cxx11abiFALSE-cp311-cp311-linux_x86_64.whl" \
+ && python3 -c "import flash_attn, torch; print('flash_attn', flash_attn.__version__, '| torch', torch.__version__, '| cxx11abi', torch._C._GLIBCXX_USE_CXX11_ABI)"
 
 # Beenga's fork of the inference code, not upstream's.
 ARG WAN_SHA
