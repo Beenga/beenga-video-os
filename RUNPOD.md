@@ -185,6 +185,49 @@ worker with the previous image — visible as an unchanged traceback line number
 a ~16s delayTime with no image pull. Scale `workersMax` to 0, wait for the worker
 count to reach zero, then scale back up.
 
+## The real constraint: step count, not hardware — 2026-08-22
+
+Measured, same clip and inputs throughout:
+
+| GPU | steps | generation | note |
+|---|---|---|---|
+| RTX 6000 Ada 48GB | 4 | 213.6s | flash-attn live |
+| RTX 6000 Ada 48GB | 40 | ~2136s (extrapolated) | timed out at 900s guard |
+| **H100 80GB** | **4** | **65.1s** | **clears the 2-minute bar** |
+| H100 80GB | 40 | ~651s (extrapolated) | still fails |
+
+**H100 is 3.3x the Ada card — measured, not projected.** Model load is 106.3s but
+happens once per worker, not per request, so a warm worker generates in ~66s.
+
+⚠ **The bar is met only on a few-step path.** 40-step inference fails on every GPU
+available to rent; 4-step passes comfortably. Everything chased before this —
+flash-attn, offload_model, minterpolate, ABI variants — was noise around a model
+that needs 40 steps and has no distilled variant.
+
+### Why that rules out S2V and points at I2V
+
+`lightx2v` publishes 4-step distill LoRAs for **I2V-A14B and T2V-A14B only**.
+There is **none for S2V-14B**, so S2V cannot be shortened and cannot be served
+inside the bar. I2V-A14B can — and it is also the model `musubi-tuner` trains,
+which is where the India LoRA was always going to live.
+
+So the split is:
+
+| stage | model | fast? | trainable? |
+|---|---|---|---|
+| animation + India look | **I2V-A14B + Lightning 4-step** | yes | **yes** |
+| lip sync | S2V, or LongCat, or hosted | no (S2V) | not needed |
+
+The slow, untrainable component is the one that was never going to be fine-tuned.
+
+### Open work
+
+Wan's native `image2video.py` has **no general LoRA support** — only a hardcoded
+`--use_relighting_lora`. Applying Lightning means either merging the LoRA into
+the weights offline, or serving through DiffSynth-Studio, which supports Wan 2.2
+LoRA natively and is also the trainer. The second keeps serving and fine-tuning
+on one stack.
+
 ## Not done
 
 - Quantized weights. Q8/fp8 exist and would cut ~17 GB, but they are not a
