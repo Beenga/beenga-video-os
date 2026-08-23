@@ -580,3 +580,20 @@ Model cards and pricing pages, checked 2026-08-15:
 [RunPod pricing](https://www.runpod.io/pricing) ·
 [Cloudflare R2 pricing](https://developers.cloudflare.com/r2/pricing/) ·
 [Backblaze B2 pricing](https://www.backblaze.com/cloud-storage/pricing)
+
+## Making a music video
+
+`MUSIC-VIDEO.md` is the end-to-end record: the stills-first pipeline, measured
+per-clip costs on our own H100, where lip sync works and where it does not, and
+the prompting mistakes that cost renders. Start there for any new video job.
+
+Produced this way: `out/chhupke/chhupke-se-aa.mp4` (1:54, 18 shots) and four
+vertical shorts in `out/chhupke/shorts/`.
+
+⚠ Two findings worth reading before planning any lip-sync work:
+
+- **A harmony duet cannot be lip-synced by one on-screen face.** 96% of voiced
+  frames in the test track carried two simultaneous pitches.
+- **Four attempts at automatic singer identification all failed**, one of them
+  anti-correlated with what a listener heard. Do not build a fifth; see the
+  section in MUSIC-VIDEO.md.
